@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Get My Location</title>
+</head>
+
+<body>
+    <h1>Click the button to share your location</h1>
+    <button onclick="sendLocation()">Share My Location</button>
+
+    <p id="address"></p>
+
+    <script>
+        async function sendLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async function (position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    console.log("Coordinates:", lat, lon);
+
+                    const res = await fetch('/location', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ latitude: lat, longitude: lon })
+                    });
+
+                    const data = await res.json();
+                    console.log("Server response:", data);
+
+                    document.getElementById('address').innerText = "Your full address: " + data.full_address;
+                    alert("Saved address: " + data.full_address);
+                }, function (error) {
+                    alert("Unable to get location: " + error.message);
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+    </script>
+</body>
+
+</html>

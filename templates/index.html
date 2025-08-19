@@ -1,41 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Get My Location</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get Full Address</title>
 </head>
 <body>
-    <h1>Click the button to share your location</h1>
-    
-    <label>Enter Building / Block / Flat Details:</label>
-    <input type="text" id="extra" placeholder="e.g., Block 45, XYZ Apartments" />
+  <h2>📍 Get Your Address</h2>
 
-    <button onclick="sendLocation()">Share My Location</button>
-    <p id="address"></p>
+  <button onclick="getLocation()">Get My Address</button>
 
-    <script>
-        async function sendLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(async function (position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const extra = document.getElementById('extra').value;
+  <p id="output">Your full address: </p>
 
-                    const res = await fetch('/location', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ latitude: lat, longitude: lon, extra: extra })
-                    });
+  <label>Extra Details (Flat, Block, Building):</label><br>
+  <input type="text" id="extra" placeholder="e.g. Block A, Flat 102">
+  <br><br>
 
-                    const data = await res.json();
-                    document.getElementById('address').innerText = "Your full address: " + data.full_address;
-                    alert("Saved address: " + data.full_address);
-                }, function (error) {
-                    alert("Unable to get location: " + error.message);
-                });
-            } else {
-                alert("Geolocation is not supported by this browser.");
-            }
+  <script>
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showPosition, showError);
+      } else {
+        document.getElementById("output").innerText = "Geolocation is not supported by this browser.";
+      }
+    }
+
+    function showPosition(position) {
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+      const extra = document.getElementById("extra").value;
+
+      fetch("/location", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ latitude, longitude, extra })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.full_address) {
+          document.getElementById("output").innerText = "Your full address: " + data.full_address;
+        } else {
+          document.getElementById("output").innerText = "Address not found";
         }
-    </script>
+      })
+      .catch(error => {
+        console.error("Error:", error);
+        document.getElementById("output").innerText = "Error fetching address.";
+      });
+    }
+
+    function showError(error) {
+      switch(error.code) {
+        case error.PERMISSION_DENIED:
+          alert("User denied the request for Geolocation.");
+          break;
+        case error.POSITION_UNAVAILABLE:
+          alert("Location information is unavailable.");
+          break;
+        case error.TIMEOUT:
+          alert("The request to get user location timed out.");
+          break;
+        case error.UNKNOWN_ERROR:
+          alert("An unknown error occurred.");
+          break;
+      }
+    }
+  </script>
 </body>
 </html>
+

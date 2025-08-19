@@ -10,12 +10,12 @@ EXCEL_FILE = "locations.xlsx"
 
 # Setup Nominatim
 geolocator = Nominatim(user_agent="my_location_app")
-# Add rate limiter to avoid overloading free service
 geocode = RateLimiter(geolocator.reverse, min_delay_seconds=1)
 
 # Create Excel if it doesn't exist
 if not os.path.exists(EXCEL_FILE):
-    df = pd.DataFrame(columns=["Detailed Address"])
+    df = pd.DataFrame(columns=["Latitude", "Longitude",
+                      "Full Address", "Extra Details"])
     df.to_excel(EXCEL_FILE, index=False)
 
 
@@ -26,57 +26,45 @@ def index():
 
 @app.route("/location", methods=["POST"])
 def location():
-    data = request.get_json()
+    data = request.get_json(force=True)
     latitude = data.get("latitude")
     longitude = data.get("longitude")
+    extra = data.get("extra", "").strip()  # from your HTML input field
 
     if latitude is None or longitude is None:
         return {"error": "Missing coordinates"}, 400
 
     print(f"Received coordinates: lat={latitude}, lon={longitude}")
 
-    # Reverse geocoding
     try:
         location = geocode((latitude, longitude), exactly_one=True)
+
         if location:
-            raw_address = location.raw.get("address", {})
-
-            # Extract as many details as available
-            building = raw_address.get("building", "")
-            house_number = raw_address.get("house_number", "")
-            block = raw_address.get("block", "")
-            road = raw_address.get("road", "")
-            neighbourhood = raw_address.get("neighbourhood", "")
-            suburb = raw_address.get("suburb", "")
-            city = raw_address.get("city", raw_address.get(
-                "town", raw_address.get("village", "")))
-            state = raw_address.get("state", "")
-            postcode = raw_address.get("postcode", "")
-            country = raw_address.get("country", "")
-
-            # Build detailed address string
-            detailed_address = ", ".join(
-                filter(None, [building, block, house_number, road,
-                       neighbourhood, suburb, city, state, postcode, country])
-            )
-
-            # If no building/house info found, fallback to full address
-            if not detailed_address:
-                detailed_address = location.address
+            base_address = location.address  # ✅ Always gives full formatted address
         else:
-            detailed_address = "Address not found"
+            base_address = "Address not found"
     except Exception as e:
         print("Error during geocoding:", e)
-        detailed_address = "Address not found"
+        base_address = "Address not found"
+
+    # Merge extra details if provided
+    if extra:
+        full_address = f"{extra}, {base_address}"
+    else:
+        full_address = base_address
 
     # Save to Excel
     df = pd.read_excel(EXCEL_FILE)
-    new_row = pd.DataFrame([[detailed_address]], columns=["Detailed Address"])
+    new_row = pd.DataFrame([[latitude, longitude, full_address, extra]],
+                           columns=["Latitude", "Longitude", "Full Address", "Extra Details"])
     df = pd.concat([df, new_row], ignore_index=True)
     df.to_excel(EXCEL_FILE, index=False)
 
-    print(f"Saved address: {detailed_address}")
-    return jsonify({"status": "success", "detailed_address": detailed_address})
+    print(f"Saved address: {full_address}")
+    return jsonify({
+        "status": "success",
+        "full_address": full_address
+    })
 
 
 if __name__ == "__main__":

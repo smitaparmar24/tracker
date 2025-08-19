@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Get My Location</title>
 </head>
-
 <body>
     <h1>Click the button to share your location</h1>
-    <button onclick="sendLocation()">Share My Location</button>
+    
+    <label>Enter Building / Block / Flat Details:</label>
+    <input type="text" id="extra" placeholder="e.g., Block 45, XYZ Apartments" />
 
+    <button onclick="sendLocation()">Share My Location</button>
     <p id="address"></p>
 
     <script>
@@ -17,18 +18,15 @@
                 navigator.geolocation.getCurrentPosition(async function (position) {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
-
-                    console.log("Coordinates:", lat, lon);
+                    const extra = document.getElementById('extra').value;
 
                     const res = await fetch('/location', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ latitude: lat, longitude: lon })
+                        body: JSON.stringify({ latitude: lat, longitude: lon, extra: extra })
                     });
 
                     const data = await res.json();
-                    console.log("Server response:", data);
-
                     document.getElementById('address').innerText = "Your full address: " + data.full_address;
                     alert("Saved address: " + data.full_address);
                 }, function (error) {
@@ -40,5 +38,4 @@
         }
     </script>
 </body>
-
 </html>

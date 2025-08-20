@@ -1,21 +1,29 @@
 from flask import Flask, request, render_template
-import pandas as pd
+from flask_sqlalchemy import SQLAlchemy
 import os
-from geopy.geocoders import Nominatim
-from geopy.extra.rate_limiter import RateLimiter
 
 app = Flask(__name__)
 
-EXCEL_FILE = "locations.xlsx"
+# Database connection (Render sets DATABASE_URL as env variable)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
+
+# Define table for locations
 
 
-geolocator = Nominatim(user_agent="my_location_app")
-geocode = RateLimiter(geolocator.reverse, min_delay_seconds=1)
+class Location(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    full_address = db.Column(db.Text, nullable=False)
+    extra_details = db.Column(db.Text)
 
-if not os.path.exists(EXCEL_FILE):
-    df = pd.DataFrame(columns=["Latitude", "Longitude",
-                      "Full Address", "Extra Details"])
-    df.to_excel(EXCEL_FILE, index=False)
+
+# Create tables if not exist
+with app.app_context():
+    db.create_all()
 
 
 @app.route("/")
@@ -31,27 +39,23 @@ def location():
     extra = data.get("extra", "").strip() if data.get("extra") else ""
 
     if latitude is None or longitude is None:
-        return "", 204  
+        return "", 204
 
-    try:
-        location = geocode((latitude, longitude), exactly_one=True)
-        base_address = location.address if location else "Address not found"
-    except Exception as e:
-        print("Error during geocoding:", e)
-        base_address = "Address not found"
+    # Store location (without geopy for now, can add back later)
+    new_location = Location(
+        latitude=latitude,
+        longitude=longitude,
+        # Replace with geopy address if needed
+        full_address=f"{latitude}, {longitude}",
+        extra_details=extra
+    )
+    db.session.add(new_location)
+    db.session.commit()
 
-    full_address = f"{extra}, {base_address}" if extra else base_address
+    print(f"Saved location: {latitude}, {longitude}")
 
-   
-    df = pd.read_excel(EXCEL_FILE)
-    new_row = pd.DataFrame([[latitude, longitude, full_address, extra]],
-                           columns=["Latitude", "Longitude", "Full Address", "Extra Details"])
-    df = pd.concat([df, new_row], ignore_index=True)
-    df.to_excel(EXCEL_FILE, index=False)
+    return "", 204
 
-    print(f"Saved silently: {full_address}")
-
-    return "", 204  
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

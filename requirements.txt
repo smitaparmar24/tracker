@@ -6,4 +6,3 @@ requests==2.31.0
 wheel==0.41.2
 gunicorn==21.2.0
 numpy==1.26.4
-

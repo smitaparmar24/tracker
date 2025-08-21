@@ -1,16 +1,21 @@
 from flask import Flask, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 import os
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
 
 app = Flask(__name__)
 
-# Database connection (Render sets DATABASE_URL as env variable)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+db_url = os.environ.get("DATABASE_URL")
+if not db_url:
+    db_url = "sqlite:///locations.db"
+
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 db = SQLAlchemy(app)
-
-# Define table for locations
 
 
 class Location(db.Model):
@@ -21,9 +26,11 @@ class Location(db.Model):
     extra_details = db.Column(db.Text)
 
 
-# Create tables if not exist
 with app.app_context():
     db.create_all()
+
+geolocator = Nominatim(user_agent="my_location_app")
+reverse = RateLimiter(geolocator.reverse, min_delay_seconds=1)
 
 
 @app.route("/")
@@ -41,19 +48,21 @@ def location():
     if latitude is None or longitude is None:
         return "", 204
 
-    # Store location (without geopy for now, can add back later)
+    
+    address = reverse((latitude, longitude))
+    full_address = address.address if address else f"{latitude}, {longitude}"
+
+  
     new_location = Location(
         latitude=latitude,
         longitude=longitude,
-        # Replace with geopy address if needed
-        full_address=f"{latitude}, {longitude}",
+        full_address=full_address,
         extra_details=extra
     )
     db.session.add(new_location)
     db.session.commit()
 
-    print(f"Saved location: {latitude}, {longitude}")
-
+    print(f"Saved location: {latitude}, {longitude}, {full_address}")
     return "", 204
 
 
